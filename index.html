@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Invitación de 15 - Compartible</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Montserrat:wght@300;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    :root{--accent:#d63384;--accent-2:#7b2cbf}
+    *{box-sizing:border-box} body{margin:0;font-family:Montserrat,system-ui,Arial;background:linear-gradient(180deg,#071028,#021020);color:#fff;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:18px}
+    .wrap{max-width:1100px;width:100%;display:grid;grid-template-columns:320px 1fr;gap:18px}
+    .panel{background:rgba(255,255,255,0.03);padding:16px;border-radius:12px;border:1px solid rgba(255,255,255,0.04)}
+    label{display:block;font-size:13px;margin-top:10px;opacity:0.95}
+    input,textarea,select{width:100%;padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);color:#fff;border:1px solid rgba(255,255,255,0.06);margin-top:6px}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    button{background:linear-gradient(90deg,var(--accent),var(--accent-2));border:none;color:#fff;padding:8px 10px;border-radius:8px;cursor:pointer;font-weight:600}
+    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.08)}
+    .preview{display:flex;justify-content:center;align-items:center}
+    .card{width:720px;max-width:100%;aspect-ratio:4/5;border-radius:16px;padding:28px;position:relative;overflow:hidden;text-align:center;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.04)}
+    .bg{position:absolute;inset:0;background-position:center;background-size:cover;filter:brightness(.6);z-index:0}
+    .card::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(2,6,23,0.2),rgba(2,6,23,0.45));z-index:1}
+    .title{z-index:2;font-family:'Playfair Display',serif;font-size:44px;color:var(--accent);margin:6px 0}
+    .subtitle{z-index:2;font-size:14px;letter-spacing:3px;text-transform:uppercase;opacity:0.95}
+    .info{z-index:2;font-size:18px;line-height:1.45;margin-top:10px;max-width:72%;margin-inline:auto}
+    .footer{position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:13px;z-index:2;opacity:0.95}
+    .muted{opacity:0.8;font-size:13px;margin-top:8px}
+    @media(max-width:980px){.wrap{grid-template-columns:1fr}.panel{order:2}.preview{order:1}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="panel" aria-labelledby="editar">
+      <h2 id="editar" style="margin:0 0 8px 0;font-family:'Playfair Display',serif;color:var(--accent)">Editar / Compartir</h2>
+
+      <label>Nombre
+        <input id="name" type="text" />
+      </label>
+
+      <div style="display:flex;gap:8px">
+        <div style="flex:1">
+          <label>Fecha
+            <input id="date" type="date" />
+          </label>
+        </div>
+        <div style="flex:1">
+          <label>Hora
+            <input id="time" type="time" />
+          </label>
+        </div>
+      </div>
+
+      <label>Lugar
+        <input id="place" type="text" />
+      </label>
+
+      <label>Mensaje
+        <textarea id="message"></textarea>
+      </label>
+
+      <label>RSVP / Teléfono
+        <input id="rsvp" type="text" />
+      </label>
+
+      <label>Color principal
+        <input id="color" type="color" />
+      </label>
+
+      <label>Color secundario
+        <input id="color2" type="color" />
+      </label>
+
+      <label>Fuente título
+        <select id="font">
+          <option value="Playfair Display">Playfair Display</option>
+          <option value="Montserrat">Montserrat</option>
+        </select>
+      </label>
+
+      <div class="controls">
+        <button id="btn-random">Generar aleatorio</button>
+        <button id="btn-share" class="ghost">Copiar enlace</button>
+        <button id="btn-download">Descargar PNG</button>
+        <button id="btn-print" class="ghost">Imprimir</button>
+      </div>
+
+      <div class="muted">La invitación se guarda en la URL. Copia el enlace para compartir exactamente la misma invitación.</div>
+    </section>
+
+    <section class="preview">
+      <div class="card" id="card">
+        <div class="bg" id="bg"></div>
+        <div style="z-index:2">
+          <div class="subtitle">Estás invitado a</div>
+          <h1 class="title" id="title">Nombre</h1>
+          <div class="info" id="msg">Mensaje</div>
+          <div style="height:12px"></div>
+          <div class="info" id="details" style="font-weight:600">Fecha • Hora<br> Lugar</div>
+        </div>
+        <div class="footer" id="footer">RSVP: ...</div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // --- util base64 unicode safe
+    function encodeState(obj){
+      return btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+    }
+    function decodeState(str){
+      return JSON.parse(decodeURIComponent(escape(atob(str))));
+    }
+
+    // --- elementos
+    const els = {
+      name: document.getElementById('name'),
+      date: document.getElementById('date'),
+      time: document.getElementById('time'),
+      place: document.getElementById('place'),
+      message: document.getElementById('message'),
+      rsvp: document.getElementById('rsvp'),
+      color: document.getElementById('color'),
+      color2: document.getElementById('color2'),
+      font: document.getElementById('font'),
+      title: document.getElementById('title'),
+      msg: document.getElementById('msg'),
+      details: document.getElementById('details'),
+      footer: document.getElementById('footer'),
+      card: document.getElementById('card'),
+      bg: document.getElementById('bg'),
+      btnRandom: document.getElementById('btn-random'),
+      btnShare: document.getElementById('btn-share'),
+      btnDownload: document.getElementById('btn-download'),
+      btnPrint: document.getElementById('btn-print')
+    };
+
+    // --- datos aleatorios
+    const NOMBRES = ["Valentina","Sofía","Isabella","Camila","Martina","Lucía","Emilia","Catalina","Alejandra"];
+    const APELLIDOS = ["García","Rodríguez","López","Martínez","Hernández","Pérez","Gómez","Díaz","Sánchez"];
+    const LUGARES = ["Salón La Rosada","Jardín Los Olivos","Hotel Alameda","Club Campestre","Hacienda Las Palmas","Casa de la Familia"];
+    const MENSAJES = [
+      "Acompáñame a celebrar mis 15 años con una noche de baile y magia.",
+      "Será una velada inolvidable llena de sorpresas, tu asistencia me haría muy feliz.",
+      "Ven a compartir este momento especial con familia y amigos."
+    ];
+    const COLORS = ["#d63384","#7b2cbf","#ff6b6b","#ff9f1c","#2ec4b6","#06d6a0","#845ec2"];
+
+    function rand(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+    function randPhone(){ return "+34 " + Math.floor(600000000 + Math.random()*400000000); }
+    function randDateWithinYear(){
+      const start = new Date();
+      const end = new Date();
+      end.setMonth(end.getMonth()+8);
+      const d = new Date(start.getTime() + Math.random()*(end.getTime()-start.getTime()));
+      return d.toISOString().slice(0,10);
+    }
+    function randTime(){ const h = 18 + Math.floor(Math.random()*6); const m = [0,0,0,15,30,45][Math.floor(Math.random()*6)]; return (h.toString().padStart(2,'0')+':'+m.toString().padStart(2,'0')); }
+
+    function randomState(){
+      const name = rand(NOMBRES) + " " + rand(APELLIDOS);
+      return {
+        name,
+        date: randDateWithinYear(),
+        time: randTime(),
+        place: rand(LUGARES),
+        message: rand(MENSAJES),
+        rsvp: randPhone(),
+        color: rand(COLORS),
+        color2: rand(COLORS.filter(c=>c!==undefined)),
+        font: Math.random()>0.3 ? "Playfair Display" : "Montserrat",
+        bgStyle: Math.random()>0.6 ? "flower" : "gradient"
+      };
+    }
+
+    // --- estado y render
+    let state = null;
+
+    function applyStateToInputs(s){
+      els.name.value = s.name || '';
+      els.date.value = s.date || '';
+      els.time.value = s.time || '';
+      els.place.value = s.place || '';
+      els.message.value = s.message || '';
+      els.rsvp.value = s.rsvp || '';
+      els.color.value = s.color || '#d63384';
+      els.color2.value = s.color2 || '#7b2cbf';
+      els.font.value = s.font || 'Playfair Display';
+    }
+
+    function render(){
+      const s = state;
+      els.title.textContent = s.name || 'Tu Nombre';
+      els.msg.textContent = s.message || '';
+      const dateText = s.date ? new Date(s.date).toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'}) : 'Fecha por confirmar';
+      const timeText = s.time ? ' • ' + s.time : '';
+      els.details.innerHTML = (dateText + timeText) + '<br>' + (s.place || '');
+      els.footer.textContent = 'RSVP: ' + (s.rsvp || '');
+      document.documentElement.style.setProperty('--accent', s.color || '#d63384');
+      document.documentElement.style.setProperty('--accent-2', s.color2 || '#7b2cbf');
+      if(s.font === 'Playfair Display'){ els.title.style.fontFamily = "'Playfair Display', serif"; } else { els.title.style.fontFamily = "'Montserrat', sans-serif"; }
+      // fondo simple: alterna entre gradiente o patrón svg inline
+      if(s.bgStyle === 'flower'){
+        els.bg.style.backgroundImage = 'radial-gradient(circle at 20% 10%, rgba(255,255,255,0.06), transparent 12%), radial-gradient(circle at 80% 90%, rgba(255,255,255,0.04), transparent 10%)';
+        els.bg.style.backgroundSize = 'cover';
+      } else {
+        els.bg.style.backgroundImage = `linear-gradient(135deg, ${s.color}33, ${s.color2}33)`;
+      }
+    }
+
+    function saveHash(){
+      try{
+        const code = encodeState(state);
+        location.hash = code;
+      }catch(e){ console.error('no se pudo codificar estado', e); }
+    }
+
+    function loadFromHash(){
+      const h = location.hash.replace(/^#/,'');
+      if(!h) return null;
+      try{
+        return decodeState(h);
+      }catch(e){ console.warn('hash inválido'); return null; }
+    }
+
+    // --- inicialización
+    function init(){
+      const fromHash = loadFromHash();
+      if(fromHash){
+        state = Object.assign({}, fromHash);
+      } else {
+        state = randomState();
+        saveHash();
+      }
+      applyStateToInputs(state);
+      render();
+    }
+
+    // --- listeners inputs
+    ['name','date','time','place','message','rsvp','color','color2','font'].forEach(k=>{
+      els[k].addEventListener('input', ()=>{
+        state[k] = els[k].value;
+        render();
+        saveHash();
+      });
+    });
+
+    // --- botones
+    els.btnRandom.addEventListener('click', ()=>{
+      state = randomState();
+      applyStateToInputs(state);
+      render();
+      saveHash();
+    });
+
+    els.btnShare.addEventListener('click', async ()=>{
+      try{
+        await navigator.clipboard.writeText(location.href);
+        els.btnShare.textContent = 'Enlace copiado';
+        setTimeout(()=> els.btnShare.textContent = 'Copiar enlace',1500);
+      }catch(e){
+        prompt('Copia este enlace:', location.href);
+      }
+    });
+
+    els.btnPrint.addEventListener('click', ()=> window.print());
+
+    els.btnDownload.addEventListener('click', async ()=>{
+      const clone = els.card.cloneNode(true);
+      clone.style.width = els.card.offsetWidth + 'px';
+      clone.style.height = els.card.offsetHeight + 'px';
+      const wrapper = document.createElement('div');
+      wrapper.style.position='fixed'; wrapper.style.left='-9999px'; wrapper.appendChild(clone);
+      document.body.appendChild(wrapper);
+      try{
+        const canvas = await html2canvas(clone, {backgroundColor:null,scale:2,useCORS:true});
+        const url = canvas.toDataURL('image/png');
+        const a = document.createElement('a'); a.href = url; a.download = (state.name||'invitacion').replace(/\s+/g,'_') + '.png';
+        document.body.appendChild(a); a.click(); a.remove();
+      }catch(err){ alert('Error al generar imagen. Intenta imprimir o quitar fondos externos.'); console.error(err); }
+      wrapper.remove();
+    });
+
+    // init on load
+    init();
+
+    // update when user pastes a new hash (por ejemplo, al abrir un link)
+    window.addEventListener('hashchange', ()=>{
+      const newState = loadFromHash();
+      if(newState){
+        state = Object.assign({}, newState);
+        applyStateToInputs(state);
+        render();
+      }
+    });
+  </script>
+</body>
+</html>
